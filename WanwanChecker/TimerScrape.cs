@@ -3,9 +3,12 @@ using AngleSharp.Dom;
 using AngleSharp.Dom.Html;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
+using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace WanwanChecker
@@ -26,19 +29,25 @@ namespace WanwanChecker
                 var row = rows.ElementAt(7);
                 var imgElement = row?.LastElementChild?.LastElementChild?.LastElementChild as IHtmlImageElement;
 
-                if (imgElement?.AlternativeText == "ご案内中")
+                if (imgElement?.AlternativeText != "ご案内中")
                 {
-                    log.Info($"受付中");
-                }
-                else
-                {
-                    log.Info($"受付開始待ち");
+                    log.Info($"受付が始まってないため終了");
+                    return;
                 }
             }
             catch (Exception e)
             {
                 log.Error(e.Message, e);
             }
+
+            // Slackへの通知
+            var payload = GetSlackPayload();
+            var endpoint = GetSlackEndpoint();
+            var httpClient = new HttpClient();
+            await httpClient.PostAsync(endpoint, new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("payload", payload)
+            }));
         }
 
         /// <summary>
@@ -69,6 +78,35 @@ namespace WanwanChecker
         private static string GetRowSelector()
         {
             return ConfigurationManager.AppSettings["RowSelector"];
+        }
+
+        /// <summary>
+        /// Slackの通知情報を取得します。
+        /// </summary>
+        /// <returns>通知情報</returns>
+        private static string GetSlackPayload()
+        {
+            var payload = new
+            {
+                attachments = new []
+                {
+                    new
+                    {
+                        title = "ワンワンわんだーらんどの受付が始まったよ",
+                        title_link = GetAddress(),
+                    }
+                }
+            };
+            return JsonConvert.SerializeObject(payload);
+        }
+
+        /// <summary>
+        /// Slackのエンドポイントを取得します。
+        /// </summary>
+        /// <returns>エンドポイント</returns>
+        private static string GetSlackEndpoint()
+        {
+            return ConfigurationManager.AppSettings["SlackEndpoint"];
         }
     }
 }
