@@ -24,8 +24,7 @@ namespace WanwanChecker
             {
                 var document = await Scrape(GetAddress());
                 var rows = document.QuerySelectorAll(GetRowSelector());
-                //var row = rows.LastOrDefault();
-                var row = rows.ElementAt(7);
+                var row = rows.LastOrDefault();
                 var imgElement = row?.LastElementChild?.LastElementChild?.LastElementChild as IHtmlImageElement;
 
                 if (imgElement?.AlternativeText != "‚²ˆÄ“à’†")
